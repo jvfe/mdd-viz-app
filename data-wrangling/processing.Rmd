@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r loading-data}
 library(tidyverse)
 library(biomaRt)
 library(plotly)
@@ -74,12 +74,8 @@ transcript <- df_genes_with_symbols %>%
     y = "p-value (adjusted)"
   )
 
-ggplotly(transcript, tooltip = "text")
-```
+ggplotly(gene, tooltip = "text")
 
-```{r}
-df_genes_with_symbols %>% 
-  setNames(c("ENSG", "ENST", "Gene Exp. padj", "Transcript Exp. padj", "Region", "Gender", "Gene Name")) %>% 
-  datatable()
+ggplotly(transcript, tooltip = "text")
 ```
 
