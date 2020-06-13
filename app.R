@@ -11,7 +11,7 @@ ui <- dashboardPage(skin = "purple",
     dashboardSidebar(
         sidebarMenu(
             menuItem("Gráficos", tabName = "graphs", icon = icon("bar-chart")),
-            menuItem("Dados", tabName = "data", icon = icon("arrows-alt"))
+            menuItem("Dados", tabName = "data", icon = icon("table"))
         )
     ),
     dashboardBody(
