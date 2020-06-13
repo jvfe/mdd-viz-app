@@ -1,0 +1,56 @@
+---
+title: "wrangling"
+author: "João Vitor"
+date: "12/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(patchwork)
+library(plotly)
+theme_set(theme_bw())
+```
+
+```{r}
+ df_res_padj %>% 
+  separate(group, c("region", "sex"), "_") %>% 
+  filter(geneID == "ENSG00000153310") %>% 
+  distinct(region)
+```
+
+```{r}
+gene <- df_res_padj %>% 
+  separate(group, c("region", "sex"), "_") %>% 
+  filter(geneID == "ENSG00000109339" & region == "dlPFC") %>% 
+  ggplot(aes(x = 0, y = gene, 
+             color = region, text = paste("Region:", region, "\np-adj:", gene))) +
+  geom_point(alpha = 0.7) +
+  facet_wrap(~sex) +
+  guides(color = FALSE) +
+  labs(
+    x = NULL,
+    y = "p-value (adjusted)"
+  )
+
+transcript <- df_res_padj %>% 
+  separate(group, c("region", "sex"), "_") %>% 
+  filter(geneID == "ENSG00000109339" & transcript < 0.05) %>% 
+  ggplot(aes(x = 0, y = gene, 
+             color = region, 
+             text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript))) +
+  geom_point() +
+  facet_wrap(~sex, scales = "free_y")
+  guides(color = FALSE) +
+  labs(
+    x = NULL,
+    y = "p-value (adjusted)"
+  )
+
+ggplotly(gene, tooltip = "text")
+```
+
