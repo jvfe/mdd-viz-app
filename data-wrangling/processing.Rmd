@@ -11,46 +11,75 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-library(patchwork)
+library(biomaRt)
 library(plotly)
 theme_set(theme_bw())
+set.seed(112358)
+
+load("./data-wrangling/diff_tx_corrected.rda")
 ```
 
-```{r}
+```{r pull-regions-from-gene}
  df_res_padj %>% 
   separate(group, c("region", "sex"), "_") %>% 
   filter(geneID == "ENSG00000153310") %>% 
-  distinct(region)
+  distinct(region) %>% 
+  pull(region)
+```
+
+```{r see-most-common-genes}
+ df_res_padj %>% 
+  separate(group, c("region", "sex"), "_") %>% 
+  count(geneID, sort = TRUE) %>% 
+  head(5)
+```
+
+```{r getting-symbols}
+ensembl <- useMart("ensembl")
+ensembl <- useDataset("hsapiens_gene_ensembl", ensembl)
+query <- getBM(attributes=c("ensembl_gene_id", "hgnc_symbol"), 
+             mart=ensembl, filters="ensembl_gene_id", values = df_res_padj$geneID)
+
+df_res_padj %>% 
+  separate(group, c("region", "sex"), "_") %>% 
+  left_join(query, by = c("geneID" = "ensembl_gene_id")) %>% # I checked for NAs
+  mutate(hgnc_symbol = ifelse(hgnc_symbol == "", geneID, hgnc_symbol)) %>% # If symbol null, input with ENSG
+  saveRDS(file = "./data-wrangling/df_genes_with_symbols.rds")
+```
+
+```{r plotting}
+df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
+
+gene <- df_genes_with_symbols %>% 
+  filter(geneID == "ENSG00000109339" & region == "Nac") %>% 
+  ggplot(aes(x = str_to_title(sex), y = gene, 
+             text = paste("Region:", region, "\np-adj:", gene))) +
+  geom_point(alpha = 0.7, color = "#296e6b") +
+  guides(color = FALSE) +
+  expand_limits(y = 0) +
+  labs(
+    x = NULL,
+    y = "p-value (adjusted)"
+  )
+
+transcript <- df_genes_with_symbols %>% 
+  filter(geneID == "ENSG00000109339" & transcript < 0.05 & region == "Nac") %>% 
+  ggplot(aes(x = str_to_title(sex), y = transcript,
+             text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript))) +
+  geom_jitter(alpha = 0.7, color = "#296e6b", 
+              height = 0, width = 0.4) +
+  guides(color = FALSE) +
+  labs(
+    x = NULL,
+    y = "p-value (adjusted)"
+  )
+
+ggplotly(transcript, tooltip = "text")
 ```
 
 ```{r}
-gene <- df_res_padj %>% 
-  separate(group, c("region", "sex"), "_") %>% 
-  filter(geneID == "ENSG00000109339" & region == "dlPFC") %>% 
-  ggplot(aes(x = 0, y = gene, 
-             color = region, text = paste("Region:", region, "\np-adj:", gene))) +
-  geom_point(alpha = 0.7) +
-  facet_wrap(~sex) +
-  guides(color = FALSE) +
-  labs(
-    x = NULL,
-    y = "p-value (adjusted)"
-  )
-
-transcript <- df_res_padj %>% 
-  separate(group, c("region", "sex"), "_") %>% 
-  filter(geneID == "ENSG00000109339" & transcript < 0.05) %>% 
-  ggplot(aes(x = 0, y = gene, 
-             color = region, 
-             text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript))) +
-  geom_point() +
-  facet_wrap(~sex, scales = "free_y")
-  guides(color = FALSE) +
-  labs(
-    x = NULL,
-    y = "p-value (adjusted)"
-  )
-
-ggplotly(gene, tooltip = "text")
+df_genes_with_symbols %>% 
+  setNames(c("ENSG", "ENST", "Gene Exp. padj", "Transcript Exp. padj", "Region", "Gender", "Gene Name")) %>% 
+  datatable()
 ```
 
