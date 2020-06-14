@@ -3,7 +3,10 @@ library(shinydashboard)
 library(tidyverse)
 library(plotly)
 library(DT)
+library(igraph)
+library(visNetwork)
 
+all_nets <- readRDS("~/Documentos/bioinfo/mdd-viz-app/data-wrangling/dge_nets.rds")
 df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
 
 ui <- dashboardPage(skin = "purple",
@@ -11,6 +14,7 @@ ui <- dashboardPage(skin = "purple",
     dashboardSidebar(
         sidebarMenu(
             menuItem("Gráficos", tabName = "graphs", icon = icon("bar-chart")),
+            menuItem("Redes PPI", tabName = "nets", icon = icon("cloudsmith")),
             menuItem("Dados", tabName = "data", icon = icon("table"))
         )
     ),
@@ -18,7 +22,7 @@ ui <- dashboardPage(skin = "purple",
         tabItems(
             tabItem(tabName = "graphs",
                     fluidRow(
-                        box(title = "Selecione o gene", status = "warning", 
+                        box(title = "Escolha o gene", status = "warning", 
                             collapsible = TRUE, solidHeader = TRUE,
                             textInput("genebox", label = NULL, placeholder = NULL)),
                         box(title = "Selecione a região cerebral", status = "warning", 
@@ -31,6 +35,18 @@ ui <- dashboardPage(skin = "purple",
                         box(title = "DTE", status = "primary", solidHeader = TRUE,
                             HTML("<b>Apenas com padj<0.05</b></br>"), br(),
                             plotlyOutput("dte_plot"))
+                    )
+            ),
+            
+            tabItem(tabName = "nets",
+                    fluidRow(
+                        box(title = "Selecione a região cerebral", status = "warning", 
+                            collapsible = TRUE, solidHeader = TRUE,
+                            selectInput(inputId = "regionet", label = NULL, 
+                                        choices = unique(all_nets$region), selected = "Nac"))
+                    ),
+                    fluidRow(
+                        box(status = "primary", visNetworkOutput("network"), width = "90%")
                     )
             ),
 
@@ -92,6 +108,19 @@ server <- function(input, output, session) {
                      ), tooltip = "text")
         
         
+    })
+    
+    output$network <- renderVisNetwork({
+        net <- all_nets %>% 
+            select(-c(stringId_A, stringId_B)) %>% 
+            filter(region == input$regionet) %>% 
+            graph_from_data_frame(directed = FALSE)
+        
+        visIgraph(net) %>%
+            visIgraphLayout(layout = "layout_nicely") %>%
+            visNodes(size = 10) %>%
+            visOptions(highlightNearest = list(enabled = T, hover = T), 
+                       nodesIdSelection = T)
     })
     
     output$tabledata <- renderDataTable({

@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r loading-data}
 library(tidyverse)
 library(biomaRt)
+library(rentrez)
 library(plotly)
 theme_set(theme_bw())
 set.seed(112358)
@@ -37,15 +38,18 @@ load("./data-wrangling/diff_tx_corrected.rda")
 ```{r getting-symbols}
 ensembl <- useMart("ensembl")
 ensembl <- useDataset("hsapiens_gene_ensembl", ensembl)
-query <- getBM(attributes=c("ensembl_gene_id", "hgnc_symbol"), 
+query <- getBM(attributes=c("ensembl_gene_id", "entrezgene_id", "hgnc_symbol"), 
              mart=ensembl, filters="ensembl_gene_id", values = df_res_padj$geneID)
-
-df_res_padj %>% 
-  separate(group, c("region", "sex"), "_") %>% 
-  left_join(query, by = c("geneID" = "ensembl_gene_id")) %>% # I checked for NAs
-  mutate(hgnc_symbol = ifelse(hgnc_symbol == "", geneID, hgnc_symbol)) %>% # If symbol null, input with ENSG
-  saveRDS(file = "./data-wrangling/df_genes_with_symbols.rds")
 ```
+
+```{r creating-object}
+df_genes_with_symbols <- df_res_padj %>% 
+  separate(group, c("region", "sex"), "_") %>% 
+  left_join(query, by = c("geneID" = "ensembl_gene_id")) %>% 
+  mutate(hgnc_symbol = ifelse(hgnc_symbol == "", geneID, hgnc_symbol)) %>% # If symbol null, input with ENSG
+  saveRDS("./data-wrangling/df_genes_with_symbols.rds")
+```
+
 
 ```{r plotting}
 df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
@@ -77,5 +81,11 @@ transcript <- df_genes_with_symbols %>%
 ggplotly(gene, tooltip = "text")
 
 ggplotly(transcript, tooltip = "text")
+```
+
+```{r}
+
+
+
 ```
 
