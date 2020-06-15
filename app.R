@@ -1,13 +1,14 @@
 library(shiny)
 library(shinydashboard)
-library(tidyverse)
+library(dplyr)
 library(plotly)
 library(DT)
 library(igraph)
 library(visNetwork)
 
-all_nets <- readRDS("~/Documentos/bioinfo/mdd-viz-app/data-wrangling/dge_nets.rds")
+all_nets <- readRDS("./data-wrangling/dge_nets.rds")
 df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
+theme_set(theme_bw())
 
 ui <- dashboardPage(skin = "purple",
     dashboardHeader(title = "MDD"),

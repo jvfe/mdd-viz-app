@@ -12,7 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r loading-data}
 library(tidyverse)
 library(biomaRt)
-library(rentrez)
 library(plotly)
 theme_set(theme_bw())
 set.seed(112358)
@@ -82,10 +81,3 @@ ggplotly(gene, tooltip = "text")
 
 ggplotly(transcript, tooltip = "text")
 ```
-
-```{r}
-
-
-
-```
-
