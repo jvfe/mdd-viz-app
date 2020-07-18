@@ -6,6 +6,19 @@ library(DT)
 library(igraph)
 library(visNetwork)
 
+make_gene_plot <- function(data, ...) {
+    ggplotly(data %>% 
+        ggplot(aes(...)) +
+            geom_point(alpha = 0.7, color = "#296e6b") +
+            guides(color = FALSE) +
+            expand_limits(y = 0) +
+            labs(
+                x = NULL,
+                y = "p-value (adjusted)"
+            ), tooltip = "text")
+}
+
+
 all_nets <- readRDS("./data-wrangling/dge_nets.rds")
 df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
 theme_set(theme_bw())
@@ -78,17 +91,11 @@ server <- function(input, output, session) {
     output$dge_plot <- renderPlotly({
         req(input$genebox)
         req(input$regionbox)
-        ggplotly(df_genes_with_symbols %>% 
-            filter(hgnc_symbol == input$genebox & region == input$regionbox) %>% 
-            ggplot(aes(x = str_to_title(sex), y = gene, 
-                       text = paste("Region:", region, "\np-adj:", gene))) +
-            geom_point(alpha = 0.7, color = "#296e6b") +
-            guides(color = FALSE) +
-            expand_limits(y = 0) +
-            labs(
-                x = NULL,
-                y = "p-value (adjusted)"
-            ), tooltip = "text")
+        data_gen <- df_genes_with_symbols %>% 
+            filter(hgnc_symbol == input$genebox & region == input$regionbox)
+        
+        make_gene_plot(data_gen, x = stringr::str_to_title(sex), y = gene, 
+                       text = paste("Region:", region, "\np-adj:", gene))
         
 
     })
@@ -96,17 +103,11 @@ server <- function(input, output, session) {
     output$dte_plot <- renderPlotly({
         req(input$genebox)
         req(input$regionbox)
-        ggplotly(df_genes_with_symbols %>% 
-                     filter(hgnc_symbol == input$genebox & region == input$regionbox & transcript < 0.05) %>% 
-                     ggplot(aes(x = str_to_title(sex), y = transcript,
-                                text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript))) +
-                     geom_jitter(alpha = 0.7, color = "#296e6b", 
-                                 height = 0, width = 0.4) +
-                     guides(color = FALSE) +
-                     labs(
-                         x = NULL,
-                         y = "p-value (adjusted)"
-                     ), tooltip = "text")
+        data_trans <- df_genes_with_symbols %>% 
+            filter(hgnc_symbol == input$genebox & region == input$regionbox & transcript < 0.05)
+        
+        make_gene_plot(data_trans, x = stringr::str_to_title(sex), y = transcript,
+                       text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript))
         
         
     })
