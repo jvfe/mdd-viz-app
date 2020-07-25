@@ -21,6 +21,16 @@ make_gene_plot <- function(data, ...) {
     ), tooltip = "text")
 }
 
+handle_plotly_exception <- function(data, ...) {
+  if (nrow(data) == 0) {
+    ggplotly(ggplot() +
+      theme_void() +
+      geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
+      xlab(NULL))
+  } else {
+    make_gene_plot(data, ...)
+  }
+}
 
 all_nets <- readRDS("./data-wrangling/dge_nets.rds")
 df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
@@ -123,14 +133,14 @@ server <- function(input, output, session) {
   })
 
   output$dge_plot <- renderPlotly({
-    make_gene_plot(curr_data(),
+    handle_plotly_exception(curr_data(),
       x = stringr::str_to_title(sex), y = gene,
       text = paste("Region:", region, "\np-adj:", gene)
     )
   })
 
   output$dte_plot <- renderPlotly({
-    make_gene_plot(trans_filter(),
+    handle_plotly_exception(trans_filter(),
       x = stringr::str_to_title(sex), y = transcript,
       text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript)
     )
