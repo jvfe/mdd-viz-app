@@ -10,44 +10,47 @@ library(visNetwork)
 # port <- Sys.getenv('PORT')
 
 make_gene_plot <- function(data, ...) {
-  ggplotly(data %>%
-    ggplot(aes(...)) +
-    geom_point(alpha = 0.7, color = "#296e6b") +
-    guides(color = FALSE) +
-    expand_limits(y = 0) +
-    labs(
-      x = NULL,
-      y = "p-value (adjusted)"
-    ), tooltip = "text")
+  handle_plotly_exception(
+    data,
+    ggplotly(data %>%
+      ggplot(aes(...)) +
+      geom_point(alpha = 0.7, color = "#296e6b") +
+      guides(color = FALSE) +
+      expand_limits(y = 0) +
+      labs(
+        x = NULL,
+        y = "p-value (adjusted)"
+      ), tooltip = "text")
+  )
 }
 
-handle_plotly_exception <- function(data, ...) {
+handle_plotly_exception <- function(data, func) {
   if (nrow(data) == 0) {
     ggplotly(ggplot() +
       theme_void() +
       geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
       xlab(NULL))
   } else {
-    make_gene_plot(data, ...)
+    func
   }
 }
 
 make_isoform_plot <- function(isa_data, ...) {
-  if (nrow(isa_data) == 0) {
-    ggplotly(ggplot() +
-               theme_void() +
-               geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
-               xlab(NULL))
-  } else {
-    ggplotly(ggplot(isa_filter, aes(x = phenotype, y = val, 
-                                    group = enst, colour = enst, ...)) + 
-               geom_line() +
-               geom_point() +
-               scale_colour_discrete(guide = 'none') +
-               theme(axis.text.x = element_text(face = "italic", size = 10),
-                     legend.position='none') +
-               labs(x="", y="Isoform Switch Value"))
-  }
+  handle_plotly_exception(
+    isa_data,
+    ggplotly(ggplot(isa_data, aes(
+      x = phenotype, y = val,
+      group = enst, colour = enst, ...
+    )) +
+      geom_line() +
+      geom_point() +
+      scale_colour_discrete(guide = "none") +
+      theme(
+        axis.text.x = element_text(face = "italic", size = 10),
+        legend.position = "none"
+      ) +
+      labs(x = "", y = "Isoform Switch Value"))
+  )
 }
 
 all_nets <- readRDS("./data-wrangling/dge_nets.rds")
@@ -60,7 +63,8 @@ ui <- dashboardPage(
   dashboardHeader(title = "MDD"),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Gráficos", tabName = "graphs", icon = icon("bar-chart")),
+      menuItem("Expressão Diferencial", tabName = "graphs", icon = icon("bar-chart")),
+      menuItem("Isoformas", tabName = "isoforms", icon = icon("bar-chart")),
       menuItem("Redes PPI", tabName = "nets", icon = icon("cloudsmith")),
       menuItem("Dados", tabName = "data", icon = icon("table"))
     )
@@ -94,6 +98,20 @@ ui <- dashboardPage(
             plotlyOutput("dte_plot")
           )
         ),
+      ),
+
+      tabItem(
+        tabName = "isoforms",
+        fluidRow(
+          box(
+            title = "Selecione a região cerebral", status = "warning",
+            collapsible = TRUE, solidHeader = TRUE,
+            selectInput(
+              inputId = "regionisa", label = NULL,
+              choices = unique(isoforms_results$region), selected = "Nac"
+            )
+          )
+        ),
         fluidRow(
           box(
             title = "ISA - Mulher", status = "primary", solidHeader = TRUE,
@@ -105,7 +123,6 @@ ui <- dashboardPage(
           )
         ),
       ),
-
       tabItem(
         tabName = "nets",
         fluidRow(
@@ -162,33 +179,37 @@ server <- function(input, output, session) {
   })
 
   output$dge_plot <- renderPlotly({
-    handle_plotly_exception(curr_data(),
+    make_gene_plot(curr_data(),
       x = stringr::str_to_title(sex), y = gene,
       text = paste("Region:", region, "\np-adj:", gene)
     )
   })
 
   output$dte_plot <- renderPlotly({
-    handle_plotly_exception(trans_filter(),
+    make_gene_plot(trans_filter(),
       x = stringr::str_to_title(sex), y = transcript,
       text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript)
     )
   })
-  
+
   output$isa_fem <- renderPlotly({
-    req(input$regionbox)
-    isa_filter <- reactive({isoforms_results %>% 
-      dplyr::filter(region == input$regionbox & sex == 'female')})
+    req(input$regionisa)
+    isa_filter <- reactive({
+      isoforms_results %>%
+        dplyr::filter(region == input$regionisa & sex == "female")
+    })
     make_isoform_plot(isa_filter())
   })
 
   output$isa_mal <- renderPlotly({
-    req(input$regionbox)
-    isa_filter <- reactive({isoforms_results %>% 
-        dplyr::filter(region == input$regionbox & sex == 'male')})
+    req(input$regionisa)
+    isa_filter <- reactive({
+      isoforms_results %>%
+        dplyr::filter(region == input$regionisa & sex == "male")
+    })
     make_isoform_plot(isa_filter())
   })
-  
+
   output$network <- renderVisNetwork({
     net <- all_nets %>%
       select(-c(stringId_A, stringId_B)) %>%
