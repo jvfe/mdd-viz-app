@@ -34,3 +34,20 @@ topswitch %>%
   left_join(features_for_each, by = c("gene_id", "comparison")) %>%
   select(-c(cond1_sex, comparison)) %>%
   readr::write_csv(path = "./data-wrangling/total_results_isa.csv")
+
+## Long tidy version (for plotting)
+
+isoform_data <- readr::read_csv("./data-wrangling/total_results_isa.csv")
+
+iso1 <- data.frame(enst = isoform_data$isoform_id, 
+                   symbol = isoform_data$gene_name, 
+                   cond = isoform_data$condition_1, 
+                   val = isoform_data$IF1)
+iso2 <- data.frame(enst = isoform_data$isoform_id, 
+                   symbol = isoform_data$gene_name, 
+                   cond = isoform_data$condition_2, 
+                   val = isoform_data$IF2)
+
+rbind(iso1, iso2) %>% 
+  tidyr::separate(cond, c("region", "phenotype", "sex"), remove = FALSE) %>% 
+  readr::write_csv(path = "./data-wrangling/total_results_isa_long.csv")
