@@ -32,8 +32,27 @@ handle_plotly_exception <- function(data, ...) {
   }
 }
 
+make_isoform_plot <- function(isa_data, ...) {
+  if (nrow(isa_data) == 0) {
+    ggplotly(ggplot() +
+               theme_void() +
+               geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
+               xlab(NULL))
+  } else {
+    ggplotly(ggplot(isa_filter, aes(x = phenotype, y = val, 
+                                    group = enst, colour = enst, ...)) + 
+               geom_line() +
+               geom_point() +
+               scale_colour_discrete(guide = 'none') +
+               theme(axis.text.x = element_text(face = "italic", size = 10),
+                     legend.position='none') +
+               labs(x="", y="Isoform Switch Value"))
+  }
+}
+
 all_nets <- readRDS("./data-wrangling/dge_nets.rds")
 df_genes_with_symbols <- readRDS("./data-wrangling/df_genes_with_symbols.rds")
+isoforms_results <- read.csv("./data-wrangling/total_results_isa_long.csv")
 theme_set(theme_bw())
 
 ui <- dashboardPage(
@@ -74,7 +93,17 @@ ui <- dashboardPage(
             HTML("<b>Apenas com padj<0.05</b></br>"), br(),
             plotlyOutput("dte_plot")
           )
-        )
+        ),
+        fluidRow(
+          box(
+            title = "ISA - Mulher", status = "primary", solidHeader = TRUE,
+            plotlyOutput("isa_fem")
+          ),
+          box(
+            title = "ISA - Homem", status = "primary", solidHeader = TRUE,
+            plotlyOutput("isa_mal")
+          )
+        ),
       ),
 
       tabItem(
@@ -145,7 +174,21 @@ server <- function(input, output, session) {
       text = paste("Region:", region, "\nTranscript ID:", txID, "\np-adj:", transcript)
     )
   })
+  
+  output$isa_fem <- renderPlotly({
+    req(input$regionbox)
+    isa_filter <- reactive({isoforms_results %>% 
+      dplyr::filter(region == input$regionbox & sex == 'female')})
+    make_isoform_plot(isa_filter())
+  })
 
+  output$isa_mal <- renderPlotly({
+    req(input$regionbox)
+    isa_filter <- reactive({isoforms_results %>% 
+        dplyr::filter(region == input$regionbox & sex == 'male')})
+    make_isoform_plot(isa_filter())
+  })
+  
   output$network <- renderVisNetwork({
     net <- all_nets %>%
       select(-c(stringId_A, stringId_B)) %>%
