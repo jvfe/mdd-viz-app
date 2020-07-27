@@ -9,6 +9,17 @@ library(visNetwork)
 # For heroku deployment
 # port <- Sys.getenv('PORT')
 
+handle_plotly_exception <- function(data, func) {
+  if (nrow(data) == 0) {
+    ggplotly(ggplot() +
+               theme_void() +
+               geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
+               xlab(NULL))
+  } else {
+    func
+  }
+}
+
 make_gene_plot <- function(data, ...) {
   handle_plotly_exception(
     data,
@@ -24,23 +35,16 @@ make_gene_plot <- function(data, ...) {
   )
 }
 
-handle_plotly_exception <- function(data, func) {
-  if (nrow(data) == 0) {
-    ggplotly(ggplot() +
-      theme_void() +
-      geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
-      xlab(NULL))
-  } else {
-    func
-  }
-}
-
-make_isoform_plot <- function(isa_data, ...) {
+make_isoform_plot <- function(isa_data) {
   handle_plotly_exception(
     isa_data,
     ggplotly(ggplot(isa_data, aes(
       x = phenotype, y = val,
-      group = enst, colour = enst, ...
+      group = enst, colour = enst,
+      text = paste("Region:", region, 
+                   "\nTranscript ID:", enst, 
+                   "\nSymbol:", symbol,
+                   "\nIF:", val)
     )) +
       geom_line() +
       geom_point() +
@@ -49,7 +53,7 @@ make_isoform_plot <- function(isa_data, ...) {
         axis.text.x = element_text(face = "italic", size = 10),
         legend.position = "none"
       ) +
-      labs(x = "", y = "Isoform Switch Value"))
+      labs(x = "", y = "Isoform Switch Value"), tooltip = "text")
   )
 }
 
