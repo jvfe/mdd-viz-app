@@ -12,9 +12,9 @@ library(visNetwork)
 handle_plotly_exception <- function(data, func) {
   if (nrow(data) == 0) {
     ggplotly(ggplot() +
-               theme_void() +
-               geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
-               xlab(NULL))
+      theme_void() +
+      geom_text(aes(0, 0, label = "Não há dados para as requisições enviadas")) +
+      xlab(NULL))
   } else {
     func
   }
@@ -41,10 +41,12 @@ make_isoform_plot <- function(isa_data) {
     ggplotly(ggplot(isa_data, aes(
       x = phenotype, y = val,
       group = enst, colour = enst,
-      text = paste("Region:", region, 
-                   "\nTranscript ID:", enst, 
-                   "\nSymbol:", symbol,
-                   "\nIF:", val)
+      text = paste(
+        "Region:", region,
+        "\nTranscript ID:", enst,
+        "\nSymbol:", symbol,
+        "\nIF:", val
+      )
     )) +
       geom_line() +
       geom_point() +
@@ -156,6 +158,7 @@ ui <- dashboardPage(
     )
   )
 )
+
 server <- function(input, output, session) {
   set.seed(112358)
 
