@@ -1,3 +1,7 @@
+md5: 3fdb4976b5020460ce503654ac4035c8
 outs:
 - md5: aa8637f7af5ed31cd9cce7cf3166abae
   path: total_results_isa_long.csv
+  cache: true
+  metric: false
+  persist: false
