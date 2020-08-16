@@ -4,8 +4,6 @@ library(dplyr)
 library(plotly)
 library(ggrepel)
 library(DT)
-library(igraph)
-library(visNetwork)
 
 # For heroku deployment
 # port <- Sys.getenv('PORT')
@@ -60,7 +58,6 @@ make_isoform_plot <- function(isa_data) {
   )
 }
 
-all_nets <- readRDS("./data-wrangling/dge_nets.rds")
 load("./data-wrangling/plot_tables.rda")
 isoforms_results <- read.csv("./data-wrangling/total_results_isa_long.csv")
 theme_set(theme_bw())
@@ -71,8 +68,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Expressão Diferencial", tabName = "graphs", icon = icon("bar-chart")),
-      menuItem("Isoformas", tabName = "isoforms", icon = icon("bar-chart")),
-      menuItem("Redes PPI", tabName = "nets", icon = icon("cloudsmith")),
+      menuItem("ISAnalyzeR", tabName = "isanalyzer", icon = icon("bar-chart")),
+      menuItem(" Isoformas", tabName = "isoforms", icon = icon("cloudsmith")),
       menuItem("Dados", tabName = "data", icon = icon("table"))
     )
   ),
@@ -120,7 +117,27 @@ ui <- dashboardPage(
           ),
         ),
       ),
-  
+      
+      ## UI - IsanalyzeR pdfs
+      tabItem(
+        tabName = "isanalyzer",
+        fluidRow(
+          box(width=12,
+              status = "warning",
+            selectInput("groups", "Select a group", choices = unique(isa_df$group), 
+                        selected = "aINS_female", multiple = F),
+            selectInput("id_dtu", "Select a gene (name + ensG)", choices = unique(isa_df$id)),
+            tags$h5("Description:"),
+            textOutput(outputId = "description_dtu")
+            )
+          ),
+        fluidRow(
+          box(width=12,
+              status = "primary", htmlOutput("file")
+          )
+        )
+        ),
+      
       ## UI - Isoformas - Slope plots
       tabItem(
         tabName = "isoforms",
@@ -146,31 +163,13 @@ ui <- dashboardPage(
         ),
       ),
       
-      # UI - redes
-      tabItem(
-        tabName = "nets",
-        fluidRow(
-          box(
-            title = "Selecione a região cerebral", status = "warning",
-            collapsible = TRUE, solidHeader = TRUE,
-            selectInput(
-              inputId = "regionet", label = NULL,
-              choices = unique(all_nets$region), selected = "Nac"
-            )
-          )
-        ),
-        fluidRow(
-          box(status = "primary", visNetworkOutput("network"), width = "90%")
-        )
-      ),
-      
       # UI - dados
       tabItem(
         tabName = "data",
         fluidRow(
-          box(
-            title = "Tabela de Dados", status = "success", solidHeader = TRUE,
-            dataTableOutput("tabledata"), width = "90%"
+          box(width=12,
+            title = "Tabela de Dados DGE/DTE", status = "success", solidHeader = TRUE,
+            dataTableOutput("tabledata")
           )
         )
       )
@@ -181,6 +180,7 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   set.seed(112358)
 
+  # Server - DGE/DTE 
   choices <- reactive({
     choices <- plot_table %>%
       filter(hgnc_symbol == input$genebox) %>%
@@ -259,7 +259,52 @@ server <- function(input, output, session) {
     }
   })
   
-  ## ISA Plots
+  # DTU server ----
+  
+  # Create dynamic selectInput for genes in each group
+  observeEvent(input$groups, {
+    x <- input$groups
+    y <- isa_df$id[isa_df$group == x]
+    updateSelectInput(session, inputId = "id_dtu", label = "Select a gene (name + ensG)",
+                      choices = y,
+                      selected = tail(y, 1))
+  })
+  
+  # List all files in www/
+  files <- reactive({
+    list.files("www", full.names = T)
+  })
+  
+  # Get the gene
+  gene_ens <- reactive({
+    gene <- as.character(unlist(strsplit(input$id_dtu, split = "_")))[1]
+    ens <- as.character(unlist(strsplit(input$id_dtu, split = "_")))[2]
+    return(c(gene, ens))
+  })
+
+  # Get the file corresponding to chosen gene
+  graph <- reactive({
+    x <- files()[( grepl(gene_ens()[1], files()) & grepl(gene_ens()[2], files()) ) & grepl(input$groups, files())]
+    x <- gsub("www/", "", x)
+    return(x)
+  })
+  
+  # Outputs
+  output$description_dtu <- renderText({
+    desc_list[gene_ens()[1]]
+  })
+  
+  observeEvent(input$id_dtu, {
+    output$file <- renderUI({
+      tags$iframe(src = graph(), style = "height:800px; width:100%;scrolling=yes")
+    })
+  })
+
+  # observeEvent(input$id_dtu, {
+  #   print(isa_df$entrezgene_id[match(gene_ens()[1], isa_df$gene_name)])
+  # })
+  
+  ## Server - ISA slope Plots
   
   output$isa_fem <- renderPlotly({
     req(input$regionisa)
@@ -278,27 +323,14 @@ server <- function(input, output, session) {
     })
     make_isoform_plot(isa_filter())
   })
-
-  output$network <- renderVisNetwork({
-    net <- all_nets %>%
-      select(-c(stringId_A, stringId_B)) %>%
-      filter(region == input$regionet) %>%
-      graph_from_data_frame(directed = FALSE)
-
-    visIgraph(net) %>%
-      visIgraphLayout(layout = "layout_nicely") %>%
-      visNodes(size = 10) %>%
-      visOptions(
-        highlightNearest = list(enabled = T, hover = T),
-        nodesIdSelection = T
-      )
-  })
-
-  output$tabledata <- renderDataTable({
-    plot_table %>%
-      setNames(c("ENSG", "ENST", "Gene Exp. padj", "Transcript Exp. padj", "Region", "Gender", "Gene Name")) %>%
-      datatable()
-  })
+  
+  # SERVER - Data tables
+  output$tabledata <- renderDataTable(
+    plot_table,
+    options = list(searchHighlight = TRUE,
+                                scrollX = T), 
+      filter = 'top'
+  )
 }
 
 # Run the application
