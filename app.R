@@ -5,9 +5,6 @@ library(plotly)
 library(ggrepel)
 library(DT)
 
-# For heroku deployment
-# port <- Sys.getenv('PORT')
-
 handle_plotly_exception <- function(data, func) {
   if (nrow(data) == 0) {
     ggplotly(ggplot() +
@@ -334,12 +331,4 @@ server <- function(input, output, session) {
 }
 
 # Run the application
-app <- shinyApp(ui = ui, server = server)
-
-# For heroku deployment
-
-# runApp(
-#     appDir = app,
-#     host = '0.0.0.0',
-#     port = as.numeric(port)
-# )
+shinyApp(ui = ui, server = server)
